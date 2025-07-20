@@ -10,3 +10,21 @@
   "dependencies": {},
   "devDependencies": {}
 }
+{
+  "name": "ibge-agricultura-brasil",
+  "version": "1.0.0",
+  "description": "Visualização de dados agrícolas do IBGE - Brasil",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {},
+  "keywords": ["ibge", "agricultura", "brasil", "geojson"],
+  "author": "",
+  "license": "ISC"
+}
