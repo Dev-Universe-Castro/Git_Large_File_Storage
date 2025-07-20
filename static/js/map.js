@@ -294,6 +294,69 @@ function processData() {
     showStatus('Dados já estão carregados estaticamente!', 'info');
 }
 
+function createGeoJSONVisualization(cropData, cropName) {
+    // Clear existing layers
+    if (currentLayer) {
+        map.removeLayer(currentLayer);
+    }
+
+    // Create color scale based on data
+    const values = Object.values(cropData).map(d => d.harvested_area);
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+
+    // Update legend
+    updateLegend(cropName, minValue, maxValue);
+
+    // Create markers for municipalities with data
+    const markers = [];
+    for (const [municipalityCode, data] of Object.entries(cropData)) {
+        // Use approximate coordinates (this would need a proper geocoding service)
+        const lat = -15 + (Math.random() - 0.5) * 20; // Random lat between -25 and -5
+        const lng = -50 + (Math.random() - 0.5) * 30; // Random lng between -65 and -35
+
+        const color = getColorForValue(data.harvested_area, minValue, maxValue);
+
+        const marker = L.circleMarker([lat, lng], {
+            radius: Math.sqrt(data.harvested_area / maxValue) * 20 + 5,
+            fillColor: color,
+            color: '#fff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).bindPopup(`
+            <strong>${data.municipality_name} (${data.state_code})</strong><br>
+            Cultura: ${cropName}<br>
+            Área Colhida: ${data.harvested_area.toLocaleString()} hectares
+        `);
+
+        markers.push(marker);
+    }
+
+    currentLayer = L.layerGroup(markers).addTo(map);
+    console.log('Fallback visualization created');
+}
+
+function updateLegend(cropName, minValue, maxValue) {
+    const legendElement = document.getElementById('legend');
+    if (!legendElement) {
+        console.warn('Legend element not found');
+        return;
+    }
+
+    legendElement.innerHTML = `
+        <h4>${cropName}</h4>
+        <div class="legend-scale">
+            <div class="legend-labels">
+                <span class="legend-min">${minValue.toLocaleString()} ha</span>
+                <span class="legend-max">${maxValue.toLocaleString()} ha</span>
+            </div>
+            <div class="legend-gradient"></div>
+        </div>
+    `;
+    console.log(`Legend updated for ${cropName}: ${minValue} - ${maxValue} ha`);
+}
+
 
 // Export functions for global use
 window.initializeMap = initializeMap;
