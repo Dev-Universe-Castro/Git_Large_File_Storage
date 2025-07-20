@@ -6,13 +6,21 @@ let currentCropName = '';
 let cropMinMax = { min: 0, max: 1000 };
 
 function initializeMap() {
-    // Initialize map centered on Brazil
+    // Initialize map centered on Brazil with better bounds
     map = L.map('map').setView([-14.2350, -51.9253], 4);
 
     // Add OpenStreetMap tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
     }).addTo(map);
+
+    // Set bounds for Brazil to ensure full country is visible
+    const brazilBounds = [
+        [-33.7683777809, -73.98283055299],  // Southwest
+        [5.2842873834, -28.84765906699]     // Northeast  
+    ];
+    map.setMaxBounds(brazilBounds);
 
     // Add a welcome message
     const welcomeControl = L.control({ position: 'topleft' });
@@ -87,30 +95,55 @@ function loadMunicipalityBoundaries(cropName) {
         map.removeLayer(currentLayer);
     }
 
-    // Load GeoJSON data for Brazilian municipalities
-    fetch('/static/data/brazil_municipalities_combined.geojson')
-        .then(response => response.json())
-        .then(geoData => {
-            currentLayer = L.geoJSON(geoData, {
-                style: function(feature) {
-                    return getFeatureStyle(feature, cropName);
-                },
-                onEachFeature: function(feature, layer) {
-                    setupFeaturePopup(feature, layer, cropName);
+    // Try to load the most complete GeoJSON file available
+    const geoJsonFiles = [
+        '/static/data/brazil_municipalities_all.geojson',
+        '/attached_assets/brazil_municipalities_all_1752980285489.geojson',
+        '/static/data/brazil_municipalities_combined.geojson',
+        '/static/data/br_municipalities_simplified.geojson'
+    ];
+
+    let fileLoaded = false;
+
+    async function tryLoadGeoJSON() {
+        for (const filePath of geoJsonFiles) {
+            try {
+                console.log(`Tentando carregar: ${filePath}`);
+                const response = await fetch(filePath);
+                if (response.ok) {
+                    const geoData = await response.json();
+                    console.log(`GeoJSON carregado com sucesso: ${filePath}, ${geoData.features.length} municípios`);
+                    
+                    currentLayer = L.geoJSON(geoData, {
+                        style: function(feature) {
+                            return getFeatureStyle(feature, cropName);
+                        },
+                        onEachFeature: function(feature, layer) {
+                            setupFeaturePopup(feature, layer, cropName);
+                        }
+                    }).addTo(map);
+
+                    // Fit map to layer bounds
+                    map.fitBounds(currentLayer.getBounds());
+
+                    // Update legend
+                    updateMapLegend(cropName);
+                    fileLoaded = true;
+                    break;
                 }
-            }).addTo(map);
+            } catch (error) {
+                console.log(`Erro ao carregar ${filePath}:`, error);
+                continue;
+            }
+        }
 
-            // Fit map to layer bounds
-            map.fitBounds(currentLayer.getBounds());
-
-            // Update legend
-            updateMapLegend(cropName);
-        })
-        .catch(error => {
-            console.error('Error loading municipality boundaries:', error);
-            // Create a fallback visualization with sample data
+        if (!fileLoaded) {
+            console.error('Nenhum arquivo GeoJSON pôde ser carregado');
             createFallbackVisualization(cropName);
-        });
+        }
+    }
+
+    tryLoadGeoJSON();
 }
 
 function createFallbackVisualization(cropName) {
@@ -160,16 +193,22 @@ function createFallbackVisualization(cropName) {
 
 function getFeatureStyle(feature, cropName) {
     // Try multiple ways to get municipality code from GeoJSON
-    const municipalityCode = feature.properties.GEOCODIGO || feature.properties.CD_MUN || feature.properties.cd_geocmu || feature.properties.geocodigo;
+    const municipalityCode = feature.properties.GEOCODIGO || 
+                           feature.properties.CD_MUN || 
+                           feature.properties.cd_geocmu || 
+                           feature.properties.geocodigo ||
+                           feature.properties.CD_GEOCMU;
+    
     const cropData = currentCropData[municipalityCode];
 
-    if (!cropData || !cropData.harvested_area) {
+    if (!cropData || !cropData.harvested_area || cropData.harvested_area === 0) {
+        // Municípios sem dados - usar cor mais suave mas visível
         return {
-            fillColor: '#f0f0f0',
-            weight: 0.5,
-            opacity: 0.8,
-            color: '#cccccc',
-            fillOpacity: 0.3
+            fillColor: '#F5F5F5',
+            weight: 0.3,
+            opacity: 0.6,
+            color: '#CCCCCC',
+            fillOpacity: 0.4
         };
     }
 
@@ -178,10 +217,10 @@ function getFeatureStyle(feature, cropName) {
 
     return {
         fillColor: color,
-        weight: 0.5,
-        opacity: 0.9,
-        color: '#ffffff',
-        fillOpacity: 0.8
+        weight: 0.3,
+        opacity: 0.8,
+        color: '#666666',
+        fillOpacity: 0.7
     };
 }
 
@@ -220,29 +259,40 @@ function getMinMaxValues() {
 }
 
 function getColorForValue(value, min, max) {
-    if (value <= 0 || !value) return '#E0E0E0';
+    // Se não há valor, use uma cor para "sem dados"
+    if (value <= 0 || !value) return '#F5F5F5';
 
-    // Use logarithmic scale for better distribution
-    const logMin = Math.log(min || 1);
-    const logMax = Math.log(max);
-    const logValue = Math.log(value);
+    // Ajustar os valores mínimo e máximo para melhor distribuição
+    const adjustedMin = Math.max(min, 1); // Garantir que o mínimo seja pelo menos 1
+    const adjustedMax = Math.max(max, adjustedMin * 10); // Garantir uma faixa adequada
+
+    // Use escala logarítmica para melhor distribuição
+    const logMin = Math.log(adjustedMin);
+    const logMax = Math.log(adjustedMax);
+    const logValue = Math.log(Math.max(value, adjustedMin));
     const normalized = (logValue - logMin) / (logMax - logMin);
 
-    // Define color scale with better contrast
+    // Define escala de cores com melhor contraste
     const colors = [
-        '#FFF9C4',  // Very light yellow
-        '#F0F4C3',  // Light yellow-green
-        '#DCEDC8',  // Light green
-        '#C8E6C9',  // Medium light green
-        '#A5D6A7',  // Medium green
-        '#81C784',  // Medium-dark green
-        '#66BB6A',  // Dark green
-        '#4CAF50',  // Darker green
-        '#388E3C',  // Very dark green
-        '#2E7D32'   // Darkest green
+        '#FFEB3B',  // Amarelo (valores baixos)
+        '#FFC107',  // Âmbar
+        '#FF9800',  // Laranja
+        '#FF5722',  // Laranja escuro
+        '#F44336',  // Vermelho
+        '#E91E63',  // Rosa
+        '#9C27B0',  // Roxo
+        '#673AB7',  // Roxo escuro
+        '#3F51B5',  // Azul índigo
+        '#2196F3',  // Azul
+        '#03A9F4',  // Azul claro
+        '#00BCD4',  // Ciano
+        '#009688',  // Verde-azulado
+        '#4CAF50',  // Verde
+        '#8BC34A',  // Verde claro
+        '#CDDC39'   // Lima
     ];
 
-    // Clamp normalized value and calculate index
+    // Normalizar valor e calcular índice
     const clampedNormalized = Math.max(0, Math.min(1, normalized));
     const index = Math.floor(clampedNormalized * (colors.length - 1));
     return colors[index];
@@ -258,30 +308,50 @@ function updateMapLegend(cropName) {
     }
 
     const { min, max } = cropMinMax;
+    
+    // Ajustar valores para melhor visualização
+    const adjustedMin = Math.max(min, 1);
+    const adjustedMax = Math.max(max, adjustedMin * 10);
 
     currentLegendControl = L.control({ position: 'bottomright' });
     currentLegendControl.onAdd = function(map) {
         const div = L.DomUtil.create('div', 'map-legend');
 
         let legendHTML = `<h6><i class="fas fa-seedling"></i> ${cropName}</h6>`;
+        legendHTML += `<div style="font-size: 11px; margin-bottom: 5px;">Hectares Colhidos</div>`;
 
-        // Create color scale
-        const steps = 5;
+        // Create color scale com distribuição logarítmica
+        const steps = 6;
         for (let i = 0; i < steps; i++) {
-            const value = min + (max - min) * (i / (steps - 1));
-            const color = getColorForValue(value, min, max);
+            let value;
+            if (i === 0) {
+                value = adjustedMin;
+            } else if (i === steps - 1) {
+                value = adjustedMax;
+            } else {
+                // Distribuição logarítmica
+                const logMin = Math.log(adjustedMin);
+                const logMax = Math.log(adjustedMax);
+                const logValue = logMin + (logMax - logMin) * (i / (steps - 1));
+                value = Math.exp(logValue);
+            }
+            
+            const color = getColorForValue(value, adjustedMin, adjustedMax);
+            const displayValue = value < 1000 ? 
+                value.toLocaleString('pt-BR', {maximumFractionDigits: 0}) :
+                (value / 1000).toLocaleString('pt-BR', {maximumFractionDigits: 1}) + 'k';
 
             legendHTML += `
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: ${color}"></div>
-                    <span>${value.toLocaleString('pt-BR', {maximumFractionDigits: 0})} ha</span>
+                    <div class="legend-color" style="background-color: ${color}; width: 18px; height: 18px; display: inline-block; margin-right: 5px; border: 1px solid #ccc;"></div>
+                    <span style="font-size: 10px;">${displayValue} ha</span>
                 </div>
             `;
         }
 
         legendHTML += `
             <div class="legend-item mt-2" style="font-size: 10px; color: #666;">
-                <div class="legend-color" style="background-color: #E0E0E0"></div>
+                <div class="legend-color" style="background-color: #F5F5F5; width: 18px; height: 18px; display: inline-block; margin-right: 5px; border: 1px solid #ccc;"></div>
                 <span>Sem dados</span>
             </div>
         `;
@@ -291,7 +361,7 @@ function updateMapLegend(cropName) {
     };
     currentLegendControl.addTo(map);
 
-    console.log(`Legend updated for ${cropName}: ${min.toLocaleString()} - ${max.toLocaleString()} ha`);
+    console.log(`Legend updated for ${cropName}: ${adjustedMin.toLocaleString()} - ${adjustedMax.toLocaleString()} ha`);
 }
 
 // Data is now static, no processing needed
