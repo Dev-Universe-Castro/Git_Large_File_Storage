@@ -1,0 +1,12 @@
+
+{
+  "name": "ibge-crop-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard de dados agrícolas do IBGE",
+  "scripts": {
+    "dev": "python main.py",
+    "start": "python main.py"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

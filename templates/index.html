@@ -30,15 +30,15 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize map
     initializeMap();
-    
+
     // Event listeners
     const cropSelector = document.getElementById('crop-selector');
     const loadLayerBtn = document.getElementById('load-layer-btn');
-    
+
     cropSelector.addEventListener('change', function() {
         loadLayerBtn.disabled = !this.value;
     });
-    
+
     loadLayerBtn.addEventListener('click', function() {
         const selectedCrop = cropSelector.value;
         if (selectedCrop) {

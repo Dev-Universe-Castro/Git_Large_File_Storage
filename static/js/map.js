@@ -8,12 +8,12 @@ let cropMinMax = { min: 0, max: 1000 };
 function initializeMap() {
     // Initialize map centered on Brazil
     map = L.map('map').setView([-14.2350, -51.9253], 4);
-    
+
     // Add OpenStreetMap tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    
+
     // Add a welcome message
     const welcomeControl = L.control({ position: 'topleft' });
     welcomeControl.onAdd = function(map) {
@@ -27,19 +27,19 @@ function initializeMap() {
         return div;
     };
     welcomeControl.addTo(map);
-    
+
     console.log('Map initialized successfully');
 }
 
 function loadCropLayer(cropName) {
     console.log(`Loading crop layer for: ${cropName}`);
-    
+
     // Show loading state
     const loadBtn = document.getElementById('load-layer-btn');
     const originalText = loadBtn.innerHTML;
     loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Carregando...';
     loadBtn.disabled = true;
-    
+
     // Fetch crop data
     fetch(`/api/crop-data/${encodeURIComponent(cropName)}`)
         .then(response => response.json())
@@ -47,19 +47,19 @@ function loadCropLayer(cropName) {
             if (data.success) {
                 currentCropData = data.data;
                 currentCropName = cropName;
-                
+
                 // Calculate min/max for this specific crop
                 const values = Object.values(currentCropData)
                     .map(item => item.harvested_area)
                     .filter(value => value > 0);
-                    
+
                 if (values.length > 0) {
                     cropMinMax.min = Math.min(...values);
                     cropMinMax.max = Math.max(...values);
                 } else {
                     cropMinMax = { min: 0, max: 1000 };
                 }
-                
+
                 loadMunicipalityBoundaries(cropName);
             } else {
                 console.error('Error loading crop data:', data.error);
@@ -81,7 +81,7 @@ function loadMunicipalityBoundaries(cropName) {
     if (currentLayer) {
         map.removeLayer(currentLayer);
     }
-    
+
     // Load GeoJSON data for Brazilian municipalities
     fetch('/static/data/brazil_municipalities_all.geojson')
         .then(response => response.json())
@@ -94,10 +94,10 @@ function loadMunicipalityBoundaries(cropName) {
                     setupFeaturePopup(feature, layer, cropName);
                 }
             }).addTo(map);
-            
+
             // Fit map to layer bounds
             map.fitBounds(currentLayer.getBounds());
-            
+
             // Update legend
             updateMapLegend(cropName);
         })
@@ -120,13 +120,13 @@ function createFallbackVisualization(cropName) {
         { name: "Curitiba", lat: -25.4244, lng: -49.2654, state: "PR" },
         { name: "Porto Alegre", lat: -30.0346, lng: -51.2177, state: "RS" }
     ];
-    
+
     currentLayer = L.layerGroup();
-    
+
     sampleCities.forEach(city => {
         const area = Math.random() * 50000; // Random area for demonstration
         const color = getColorForValue(area, 0, 50000);
-        
+
         const marker = L.circleMarker([city.lat, city.lng], {
             radius: Math.sqrt(area / 1000) + 5,
             fillColor: color,
@@ -135,21 +135,21 @@ function createFallbackVisualization(cropName) {
             opacity: 1,
             fillOpacity: 0.7
         });
-        
+
         marker.bindPopup(`
             <strong>${city.name} (${city.state})</strong><br>
             Cultura: ${cropName}<br>
             Área Colhida: ${area.toLocaleString('pt-BR', {maximumFractionDigits: 0})} hectares
         `);
-        
+
         currentLayer.addLayer(marker);
     });
-    
+
     currentLayer.addTo(map);
-    
+
     // Update legend
     updateMapLegend(cropName);
-    
+
     console.log('Fallback visualization created');
 }
 
@@ -157,7 +157,7 @@ function getFeatureStyle(feature, cropName) {
     // Try multiple ways to get municipality code from GeoJSON
     const municipalityCode = feature.properties.GEOCODIGO || feature.properties.CD_MUN || feature.properties.cd_geocmu || feature.properties.geocodigo;
     const cropData = currentCropData[municipalityCode];
-    
+
     if (!cropData || !cropData.harvested_area) {
         return {
             fillColor: '#f0f0f0',
@@ -167,10 +167,10 @@ function getFeatureStyle(feature, cropName) {
             fillOpacity: 0.3
         };
     }
-    
+
     const area = cropData.harvested_area;
     const color = getColorForValue(area, cropMinMax.min, cropMinMax.max);
-    
+
     return {
         fillColor: color,
         weight: 0.5,
@@ -186,13 +186,13 @@ function setupFeaturePopup(feature, layer, cropName) {
     const municipalityName = feature.properties.NOME || feature.properties.NM_MUN || feature.properties.nm_mun || feature.properties.nome || 'Nome não disponível';
     const stateUF = feature.properties.UF || feature.properties.SIGLA_UF || feature.properties.uf;
     const cropData = currentCropData[municipalityCode];
-    
+
     let popupContent = `<strong>${municipalityName}</strong>`;
     if (stateUF) {
         popupContent += ` (${stateUF})`;
     }
     popupContent += `<br>`;
-    
+
     if (cropData && cropData.harvested_area) {
         popupContent += `
             Cultura: ${cropName}<br>
@@ -206,7 +206,7 @@ function setupFeaturePopup(feature, layer, cropName) {
             Código: ${municipalityCode || 'N/A'}
         `;
     }
-    
+
     layer.bindPopup(popupContent);
 }
 
@@ -216,13 +216,13 @@ function getMinMaxValues() {
 
 function getColorForValue(value, min, max) {
     if (value <= 0 || !value) return '#E0E0E0';
-    
+
     // Use logarithmic scale for better distribution
     const logMin = Math.log(min || 1);
     const logMax = Math.log(max);
     const logValue = Math.log(value);
     const normalized = (logValue - logMin) / (logMax - logMin);
-    
+
     // Define color scale with better contrast
     const colors = [
         '#FFF9C4',  // Very light yellow
@@ -236,7 +236,7 @@ function getColorForValue(value, min, max) {
         '#388E3C',  // Very dark green
         '#2E7D32'   // Darkest green
     ];
-    
+
     // Clamp normalized value and calculate index
     const clampedNormalized = Math.max(0, Math.min(1, normalized));
     const index = Math.floor(clampedNormalized * (colors.length - 1));
@@ -251,21 +251,21 @@ function updateMapLegend(cropName) {
         map.removeControl(currentLegendControl);
         currentLegendControl = null;
     }
-    
+
     const { min, max } = cropMinMax;
-    
+
     currentLegendControl = L.control({ position: 'bottomright' });
     currentLegendControl.onAdd = function(map) {
         const div = L.DomUtil.create('div', 'map-legend');
-        
+
         let legendHTML = `<h6><i class="fas fa-seedling"></i> ${cropName}</h6>`;
-        
+
         // Create color scale
         const steps = 5;
         for (let i = 0; i < steps; i++) {
             const value = min + (max - min) * (i / (steps - 1));
             const color = getColorForValue(value, min, max);
-            
+
             legendHTML += `
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: ${color}"></div>
@@ -273,22 +273,26 @@ function updateMapLegend(cropName) {
                 </div>
             `;
         }
-        
+
         legendHTML += `
             <div class="legend-item mt-2" style="font-size: 10px; color: #666;">
                 <div class="legend-color" style="background-color: #E0E0E0"></div>
                 <span>Sem dados</span>
             </div>
         `;
-        
+
         div.innerHTML = legendHTML;
         return div;
     };
     currentLegendControl.addTo(map);
-    
+
     console.log(`Legend updated for ${cropName}: ${min.toLocaleString()} - ${max.toLocaleString()} ha`);
 }
 
+// Data is now static, no processing needed
+function processData() {
+    showStatus('Dados já estão carregados estaticamente!', 'info');
+}
 
 
 // Export functions for global use
