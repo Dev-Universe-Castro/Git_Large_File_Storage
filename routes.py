@@ -1,128 +1,151 @@
-
-import json
 import os
-from flask import jsonify
+from flask import Flask, render_template, jsonify, request
 from app import app
+import json
 
-# Load static crop data
-def load_static_crop_data():
-    """Load crop data from static JSON file"""
+# Load crop data
+def load_crop_data():
     try:
-        with open('data/crop_data_static.json', 'r', encoding='utf-8') as f:
+        with open('data/processed_data.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        print("Warning: crop_data_static.json not found, using fallback data")
+        print("Arquivo processed_data.json não encontrado")
+        return {}
+    except Exception as e:
+        print(f"Erro ao carregar dados: {e}")
         return {}
 
-STATIC_CROP_DATA = load_static_crop_data()
+CROP_DATA = load_crop_data()
 
 @app.route('/')
 def index():
-    return app.send_static_file('index.html') if os.path.exists('static/index.html') else \
-           render_template('index.html')
+    return render_template('index.html')
 
-@app.route('/api/crops')
-def get_available_crops():
-    """Get list of all available crops"""
+@app.route('/api/states')
+def get_states():
     try:
-        crops = list(STATIC_CROP_DATA.keys())
+        # Brazilian states
+        states = [
+            {'code': 'AC', 'name': 'Acre'},
+            {'code': 'AL', 'name': 'Alagoas'},
+            {'code': 'AP', 'name': 'Amapá'},
+            {'code': 'AM', 'name': 'Amazonas'},
+            {'code': 'BA', 'name': 'Bahia'},
+            {'code': 'CE', 'name': 'Ceará'},
+            {'code': 'DF', 'name': 'Distrito Federal'},
+            {'code': 'ES', 'name': 'Espírito Santo'},
+            {'code': 'GO', 'name': 'Goiás'},
+            {'code': 'MA', 'name': 'Maranhão'},
+            {'code': 'MT', 'name': 'Mato Grosso'},
+            {'code': 'MS', 'name': 'Mato Grosso do Sul'},
+            {'code': 'MG', 'name': 'Minas Gerais'},
+            {'code': 'PA', 'name': 'Pará'},
+            {'code': 'PB', 'name': 'Paraíba'},
+            {'code': 'PR', 'name': 'Paraná'},
+            {'code': 'PE', 'name': 'Pernambuco'},
+            {'code': 'PI', 'name': 'Piauí'},
+            {'code': 'RJ', 'name': 'Rio de Janeiro'},
+            {'code': 'RN', 'name': 'Rio Grande do Norte'},
+            {'code': 'RS', 'name': 'Rio Grande do Sul'},
+            {'code': 'RO', 'name': 'Rondônia'},
+            {'code': 'RR', 'name': 'Roraima'},
+            {'code': 'SC', 'name': 'Santa Catarina'},
+            {'code': 'SP', 'name': 'São Paulo'},
+            {'code': 'SE', 'name': 'Sergipe'},
+            {'code': 'TO', 'name': 'Tocantins'}
+        ]
+
         return jsonify({
             'success': True,
-            'crops': sorted(crops)
+            'states': states
         })
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/crop-data/<crop_name>')
-def get_crop_data(crop_name):
-    """Get crop data for a specific crop"""
-    try:
-        if crop_name not in STATIC_CROP_DATA:
-            return jsonify({
-                'success': False,
-                'error': f'Crop "{crop_name}" not found'
-            }), 404
-        
-        crop_data = STATIC_CROP_DATA[crop_name]
-        
-        return jsonify({
-            'success': True,
-            'data': crop_data,
-            'crop_name': crop_name,
-            'total_municipalities': len(crop_data)
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/statistics')
 def get_statistics():
-    """Get general statistics"""
     try:
-        total_crops = len(STATIC_CROP_DATA)
-        total_municipalities = len(set(
-            municipality_code 
-            for crop_data in STATIC_CROP_DATA.values() 
-            for municipality_code in crop_data.keys()
-        ))
-        total_records = sum(len(crop_data) for crop_data in STATIC_CROP_DATA.values())
-        
-        return jsonify({
-            'success': True,
-            'statistics': {
-                'total_crops': total_crops,
-                'total_municipalities': total_municipalities,
-                'total_records': total_records,
-                'last_update': '2023-12-31T00:00:00'
-            }
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        # Count unique crops and municipalities
+        crops = set()
+        municipalities = set()
 
-@app.route('/api/crop-chart/<crop_name>')
-def get_crop_chart_data(crop_name):
-    """Get crop data formatted for chart visualization"""
-    try:
-        if crop_name not in STATIC_CROP_DATA:
-            return jsonify({
-                'success': False,
-                'error': f'Crop "{crop_name}" not found'
-            }), 404
-        
-        crop_data = STATIC_CROP_DATA[crop_name]
-        
-        # Convert to list and sort by harvested area
-        chart_data = []
-        for municipality_code, data in crop_data.items():
-            chart_data.append({
-                'municipality_name': data['municipality_name'],
-                'state_code': data['state_code'],
-                'harvested_area': data['harvested_area'],
-                'municipality_code': municipality_code
-            })
-        
-        # Sort by harvested area descending and take top 20
-        chart_data.sort(key=lambda x: x['harvested_area'], reverse=True)
-        chart_data = chart_data[:20]
-        
+        for municipality_data in CROP_DATA.values():
+            municipalities.add(municipality_data.get('municipality_name', ''))
+            if 'crops' in municipality_data:
+                crops.update(municipality_data['crops'].keys())
+
         return jsonify({
             'success': True,
-            'data': {
-                'labels': [f"{item['municipality_name']} ({item['state_code']})" for item in chart_data],
-                'data': [item['harvested_area'] for item in chart_data],
-                'crop_name': crop_name
-            }
+            'total_crops': len(crops),
+            'total_municipalities': len(municipalities)
         })
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/crops')
+def get_crops():
+    try:
+        crops = set()
+        for municipality_data in CROP_DATA.values():
+            if 'crops' in municipality_data:
+                crops.update(municipality_data['crops'].keys())
+
+        sorted_crops = sorted(list(crops))
         return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'success': True,
+            'crops': sorted_crops
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/crop-data/<crop_name>')
+def get_crop_data(crop_name):
+    try:
+        crop_municipalities = {}
+
+        for municipality_code, municipality_data in CROP_DATA.items():
+            if 'crops' in municipality_data and crop_name in municipality_data['crops']:
+                crop_municipalities[municipality_code] = {
+                    'municipality_name': municipality_data.get('municipality_name', 'Desconhecido'),
+                    'state_code': municipality_data.get('state_code', 'XX'),
+                    'harvested_area': municipality_data['crops'][crop_name]
+                }
+
+        return jsonify({
+            'success': True,
+            'data': crop_municipalities
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/crop-chart-data/<crop_name>')
+def get_crop_chart_data(crop_name):
+    try:
+        crop_municipalities = []
+
+        for municipality_code, municipality_data in CROP_DATA.items():
+            if 'crops' in municipality_data and crop_name in municipality_data['crops']:
+                crop_municipalities.append({
+                    'municipality_name': municipality_data.get('municipality_name', 'Desconhecido'),
+                    'state_code': municipality_data.get('state_code', 'XX'),
+                    'harvested_area': municipality_data['crops'][crop_name]
+                })
+
+        # Sort by harvested area and take top 20
+        crop_municipalities.sort(key=lambda x: x['harvested_area'], reverse=True)
+        top_20 = crop_municipalities[:20]
+
+        chart_data = {
+            'labels': [f"{muni['municipality_name']} ({muni['state_code']})" for muni in top_20],
+            'values': [muni['harvested_area'] for muni in top_20]
+        }
+
+        return jsonify({
+            'success': True,
+            'chart_data': chart_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
