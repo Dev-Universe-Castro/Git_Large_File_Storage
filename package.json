@@ -1,4 +1,3 @@
-
 {
   "name": "ibge-crop-dashboard",
   "version": "1.0.0",
@@ -7,13 +6,10 @@
     "dev": "python main.py",
     "start": "python main.py"
   },
-  "dependencies": {},
-  "devDependencies": {}
-}
-{
-  "name": "ibge-agricultura-brasil",
+  "devDependencies": {},
+  "name": "ibge-agriculture-dashboard",
   "version": "1.0.0",
-  "description": "Visualização de dados agrícolas do IBGE - Brasil",
+  "description": "Dashboard para visualização de dados agrícolas do IBGE",
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",
@@ -23,7 +19,6 @@
     "express": "^4.18.2",
     "cors": "^2.8.5"
   },
-  "devDependencies": {},
   "keywords": ["ibge", "agricultura", "brasil", "geojson"],
   "author": "",
   "license": "ISC"
