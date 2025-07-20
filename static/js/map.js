@@ -34,11 +34,14 @@ function initializeMap() {
 function loadCropLayer(cropName) {
     console.log(`Loading crop layer for: ${cropName}`);
 
-    // Show loading state
+    // Show loading state - check if button exists
     const loadBtn = document.getElementById('load-layer-btn');
-    const originalText = loadBtn.innerHTML;
-    loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Carregando...';
-    loadBtn.disabled = true;
+    let originalText = '';
+    if (loadBtn) {
+        originalText = loadBtn.innerHTML;
+        loadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Carregando...';
+        loadBtn.disabled = true;
+    }
 
     // Fetch crop data
     fetch(`/api/crop-data/${encodeURIComponent(cropName)}`)
@@ -71,8 +74,10 @@ function loadCropLayer(cropName) {
             alert('Erro de conexão ao carregar dados da cultura');
         })
         .finally(() => {
-            loadBtn.innerHTML = originalText;
-            loadBtn.disabled = false;
+            if (loadBtn) {
+                loadBtn.innerHTML = originalText;
+                loadBtn.disabled = false;
+            }
         });
 }
 
@@ -340,21 +345,25 @@ function createGeoJSONVisualization(cropData, cropName) {
 function updateLegend(cropName, minValue, maxValue) {
     const legendElement = document.getElementById('legend');
     if (!legendElement) {
-        console.warn('Legend element not found');
+        console.warn('Legend element not found - this is expected as we use map legend control instead');
         return;
     }
 
-    legendElement.innerHTML = `
-        <h4>${cropName}</h4>
-        <div class="legend-scale">
-            <div class="legend-labels">
-                <span class="legend-min">${minValue.toLocaleString()} ha</span>
-                <span class="legend-max">${maxValue.toLocaleString()} ha</span>
+    try {
+        legendElement.innerHTML = `
+            <h4>${cropName}</h4>
+            <div class="legend-scale">
+                <div class="legend-labels">
+                    <span class="legend-min">${minValue.toLocaleString()} ha</span>
+                    <span class="legend-max">${maxValue.toLocaleString()} ha</span>
+                </div>
+                <div class="legend-gradient"></div>
             </div>
-            <div class="legend-gradient"></div>
-        </div>
-    `;
-    console.log(`Legend updated for ${cropName}: ${minValue} - ${maxValue} ha`);
+        `;
+        console.log(`Legend updated for ${cropName}: ${minValue} - ${maxValue} ha`);
+    } catch (error) {
+        console.warn('Error updating legend:', error);
+    }
 }
 
 
