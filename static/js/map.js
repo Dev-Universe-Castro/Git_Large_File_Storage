@@ -83,7 +83,7 @@ function loadMunicipalityBoundaries(cropName) {
     }
 
     // Load GeoJSON data for Brazilian municipalities
-    fetch('/static/data/brazil_municipalities_all.geojson')
+    fetch('/static/data/brazil_municipalities_combined.geojson')
         .then(response => response.json())
         .then(geoData => {
             currentLayer = L.geoJSON(geoData, {
