@@ -40,6 +40,16 @@
                     <div class="card-body">
                         <!-- Crop Selector -->
                         <div class="mb-3">
+                            <label for="state-selector" class="form-label">
+                                <i class="fas fa-map-marked-alt me-1"></i>
+                                Selecionar Estado:
+                            </label>
+                            <select id="state-selector" class="form-select">
+                                <option value="">Todos os estados</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="crop-selector" class="form-label">
                                 <i class="fas fa-leaf me-1"></i>
                                 Selecionar Cultura:
@@ -144,7 +154,21 @@
             // Initialize components
             initializeMap();
             loadCrops();
+            loadStates();
             loadStatistics();
+
+            // Setup state selector
+            document.getElementById('state-selector').addEventListener('change', function() {
+                const selectedState = this.value;
+                filterByState(selectedState);
+                
+                // Reload current crop if one is selected
+                const selectedCrop = document.getElementById('crop-selector').value;
+                if (selectedCrop) {
+                    loadCropLayer(selectedCrop);
+                    loadCropChart(selectedCrop);
+                }
+            });
 
             // Setup crop selector
             document.getElementById('crop-selector').addEventListener('change', function() {
@@ -176,6 +200,33 @@
                 }
             } catch (error) {
                 console.error('Erro ao carregar culturas:', error);
+            }
+        }
+
+        async function loadStates() {
+            try {
+                const response = await fetch('/api/states');
+                const data = await response.json();
+
+                if (data.success) {
+                    const selector = document.getElementById('state-selector');
+                    selector.innerHTML = '<option value="">Todos os estados</option>';
+
+                    data.states.forEach(state => {
+                        const option = document.createElement('option');
+                        option.value = state.code;
+                        option.textContent = `${state.name} (${state.code})`;
+                        selector.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estados:', error);
+            }
+        }
+
+        function filterByState(stateCode) {
+            if (window.filterByStateOnMap) {
+                window.filterByStateOnMap(stateCode);
             }
         }
 

@@ -4,6 +4,8 @@ let currentLayer;
 let currentCropData = {};
 let currentCropName = '';
 let cropMinMax = { min: 0, max: 1000 };
+let currentStateFilter = null;
+let allMunicipalitiesData = null;
 
 function initializeMap() {
     // Initialize map centered on Brazil with better bounds
@@ -114,7 +116,13 @@ function loadMunicipalityBoundaries(cropName) {
                     const geoData = await response.json();
                     console.log(`GeoJSON carregado com sucesso: ${filePath}, ${geoData.features.length} municípios`);
                     
-                    currentLayer = L.geoJSON(geoData, {
+                    // Store all municipalities data
+                    allMunicipalitiesData = geoData;
+                    
+                    // Apply state filter if one is selected
+                    const filteredData = applyStateFilter(geoData);
+                    
+                    currentLayer = L.geoJSON(filteredData, {
                         style: function(feature) {
                             return getFeatureStyle(feature, cropName);
                         },
@@ -123,8 +131,10 @@ function loadMunicipalityBoundaries(cropName) {
                         }
                     }).addTo(map);
 
-                    // Fit map to layer bounds
-                    map.fitBounds(currentLayer.getBounds());
+                    // Fit map to layer bounds (focused on filtered state if applicable)
+                    if (currentLayer.getBounds().isValid()) {
+                        map.fitBounds(currentLayer.getBounds());
+                    }
 
                     // Update legend
                     updateMapLegend(cropName);
@@ -437,6 +447,63 @@ function updateLegend(cropName, minValue, maxValue) {
 }
 
 
+function applyStateFilter(geoData) {
+    if (!currentStateFilter) {
+        return geoData;
+    }
+    
+    const filteredFeatures = geoData.features.filter(feature => {
+        const stateUF = feature.properties.UF || feature.properties.SIGLA_UF || feature.properties.uf;
+        return stateUF === currentStateFilter;
+    });
+    
+    return {
+        type: "FeatureCollection",
+        features: filteredFeatures
+    };
+}
+
+function filterByStateOnMap(stateCode) {
+    currentStateFilter = stateCode;
+    
+    // If we have loaded data and a crop is selected, reload the layer with the filter
+    if (allMunicipalitiesData && currentCropName) {
+        // Remove existing layer
+        if (currentLayer) {
+            map.removeLayer(currentLayer);
+        }
+        
+        // Apply state filter
+        const filteredData = applyStateFilter(allMunicipalitiesData);
+        
+        // Create new layer with filtered data
+        currentLayer = L.geoJSON(filteredData, {
+            style: function(feature) {
+                return getFeatureStyle(feature, currentCropName);
+            },
+            onEachFeature: function(feature, layer) {
+                setupFeaturePopup(feature, layer, currentCropName);
+            }
+        }).addTo(map);
+
+        // Fit map to layer bounds (focused on filtered state if applicable)
+        if (currentLayer.getBounds().isValid()) {
+            map.fitBounds(currentLayer.getBounds());
+        } else if (!stateCode) {
+            // If no state filter, reset to Brazil bounds
+            const brazilBounds = [
+                [-33.7683777809, -73.98283055299],  // Southwest
+                [5.2842873834, -28.84765906699]     // Northeast  
+            ];
+            map.fitBounds(brazilBounds);
+        }
+
+        // Update legend
+        updateMapLegend(currentCropName);
+    }
+}
+
 // Export functions for global use
 window.initializeMap = initializeMap;
 window.loadCropLayer = loadCropLayer;
+window.filterByStateOnMap = filterByStateOnMap;
