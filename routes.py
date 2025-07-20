@@ -21,7 +21,7 @@ CROP_DATA = load_crop_data()
 def index():
     return render_template('index.html')
 
-@app.route('/api/states')
+@app.route('/api/brazilian-states')
 def get_states():
     try:
         # Brazilian states

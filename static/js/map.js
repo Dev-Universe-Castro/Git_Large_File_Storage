@@ -29,7 +29,7 @@ function initializeMap() {
     welcomeControl.onAdd = function(map) {
         const div = L.DomUtil.create('div', 'map-legend');
         div.innerHTML = `
-            <h6><i class="fas fa-info-circle"></i> Sistema FertiCore</h6>
+            <h6><i class="fas fa-info-circle"></i> AgriView</h6>
             <p style="margin: 0; font-size: 12px;">
                 Selecione uma cultura para visualizar os dados de hectares colhidos por município.
             </p>
