@@ -1,3 +1,18 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:626e3d67915490a667cf230733e8c6fe77c4cabb7b5fbabb2da7a58463f5259e
-size 433
+
+{
+  "name": "agriview-system",
+  "version": "1.0.0",
+  "description": "Agricultural visualization system",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
