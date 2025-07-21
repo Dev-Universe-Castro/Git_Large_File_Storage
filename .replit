@@ -9,7 +9,7 @@ packages = ["glibcLocales"]
 run = ["sh", "-c", "node index.js"]
 
 [workflows]
-runButton = "Development Server"
+runButton = "Flask Server"
 
 [[workflows.workflow]]
 name = "Dev Server"
@@ -28,6 +28,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python app.py"
+
+[[workflows.workflow]]
+name = "Flask Server"
+author = 45336653
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
 
 [[ports]]
 localPort = 5000
