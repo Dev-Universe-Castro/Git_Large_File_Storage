@@ -1,12 +1,12 @@
-modules = ["nodejs-20", "python-3.11", "web"]
-run = "npm run dev"
+modules = ["python-3.11", "nodejs-20", "web"]
+run = "node index.js"
 
 [nix]
 channel = "stable-24_05"
 packages = ["glibcLocales"]
 
 [deployment]
-run = ["sh", "-c", "npm run dev"]
+run = ["sh", "-c", "node index.js"]
 
 [workflows]
 runButton = "Development Server"
