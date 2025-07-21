@@ -273,6 +273,25 @@ body {
     box-shadow: 0 0 0 0.2rem rgba(124, 179, 66, 0.25);
 }
 
+/* Color Picker */
+.form-control-color {
+    border-radius: 6px !important;
+    border: 2px solid #dee2e6 !important;
+    transition: all 0.3s;
+    cursor: pointer;
+    padding: 2px !important;
+}
+
+.form-control-color:hover {
+    border-color: var(--primary-green) !important;
+    transform: scale(1.05);
+}
+
+.form-control-color:focus {
+    border-color: var(--primary-green) !important;
+    box-shadow: 0 0 0 0.2rem rgba(124, 179, 66, 0.25) !important;
+}
+
 /* Progress Bar */
 .progress {
     background: var(--light-green);

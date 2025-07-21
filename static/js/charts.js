@@ -33,6 +33,9 @@ function createCropChart(chartData) {
         cropChart.destroy();
     }
     
+    // Obter cor selecionada ou usar padrão
+    const selectedColor = document.getElementById('chart-color-picker')?.value || '#4CAF50';
+    
     const config = {
         type: 'bar',
         data: {
@@ -40,8 +43,8 @@ function createCropChart(chartData) {
             datasets: [{
                 label: 'Hectares Colhidos',
                 data: chartData.data,
-                backgroundColor: generateGradientColors(chartData.data.length),
-                borderColor: '#4CAF50',
+                backgroundColor: generateSequentialColors(chartData.data.length, selectedColor),
+                borderColor: selectedColor,
                 borderWidth: 1,
                 borderRadius: 4
             }]
@@ -108,16 +111,89 @@ function createCropChart(chartData) {
     console.log('Chart created successfully');
 }
 
-function generateGradientColors(count) {
+function generateSequentialColors(count, baseColor = '#4CAF50') {
     const colors = [];
-    const baseColors = [
-        '#E8F5E8', '#C8E6C9', '#A5D6A7', '#81C784', '#66BB6A',
-        '#4CAF50', '#43A047', '#388E3C', '#2E7D32', '#1B5E20'
-    ];
     
+    // Converter hex para RGB
+    const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    };
+    
+    // Converter RGB para HSL para melhor controle de luminosidade
+    const rgbToHsl = (r, g, b) => {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: h * 360, s: s * 100, l: l * 100 };
+    };
+
+    // Converter HSL para RGB
+    const hslToRgb = (h, s, l) => {
+        h /= 360; s /= 100; l /= 100;
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
+
+        let r, g, b;
+        if (s === 0) {
+            r = g = b = l;
+        } else {
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+        return {
+            r: Math.round(r * 255),
+            g: Math.round(g * 255),
+            b: Math.round(b * 255)
+        };
+    };
+
+    const baseRgb = hexToRgb(baseColor);
+    if (!baseRgb) return ['#4CAF50']; // fallback
+    
+    const baseHsl = rgbToHsl(baseRgb.r, baseRgb.g, baseRgb.b);
+    
+    // Criar escala sequencial do claro para escuro
     for (let i = 0; i < count; i++) {
-        const intensity = Math.floor((i / count) * baseColors.length);
-        colors.push(baseColors[Math.min(intensity, baseColors.length - 1)]);
+        // Normalizar o índice (valores maiores = cores mais escuras)
+        const normalized = i / (count - 1);
+        
+        // Ajustar luminosidade: do claro (85%) para escuro (20%)
+        const lightness = 85 - (normalized * 65);
+        
+        // Ajustar saturação ligeiramente para melhor contraste
+        const saturation = Math.max(20, baseHsl.s - (normalized * 10));
+        
+        const newRgb = hslToRgb(baseHsl.h, saturation, lightness);
+        const newHex = `#${((1 << 24) + (newRgb.r << 16) + (newRgb.g << 8) + newRgb.b).toString(16).slice(1)}`;
+        
+        colors.push(newHex);
     }
     
     return colors;
@@ -160,6 +236,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function updateChartColors(newColor) {
+    if (cropChart) {
+        const newColors = generateSequentialColors(cropChart.data.datasets[0].data.length, newColor);
+        cropChart.data.datasets[0].backgroundColor = newColors;
+        cropChart.data.datasets[0].borderColor = newColor;
+        cropChart.update();
+    }
+}
+
 // Export functions for global use
 window.loadCropChart = loadCropChart;
 window.clearChart = clearChart;
+window.updateChartColors = updateChartColors;
