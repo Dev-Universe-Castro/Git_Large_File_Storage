@@ -344,6 +344,23 @@
                 </select>
             </div>
 
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-palette me-1"></i>
+                    Cor da Visualização
+                </label>
+                <select id="color-selector" class="form-select">
+                    <option value="#4CAF50">Verde</option>
+                    <option value="#2196F3">Azul</option>
+                    <option value="#FF9800">Laranja</option>
+                    <option value="#9C27B0">Roxo</option>
+                    <option value="#F44336">Vermelho</option>
+                    <option value="#607D8B">Cinza Azulado</option>
+                    <option value="#795548">Marrom</option>
+                    <option value="#009688">Verde-azulado</option>
+                </select>
+            </div>
+
             <div class="stats-section">
                 <div class="layers-title">
                     <i class="fas fa-chart-pie me-2"></i>
@@ -400,6 +417,20 @@
                 const selectedCrop = this.value;
                 if (selectedCrop) {
                     loadCropLayer(selectedCrop);
+                }
+            });
+
+            // Setup color selector
+            document.getElementById('color-selector').addEventListener('change', function() {
+                const selectedCrop = document.getElementById('crop-selector').value;
+                if (selectedCrop) {
+                    // Recarregar a camada com a nova cor
+                    loadCropLayer(selectedCrop);
+                }
+                
+                // Atualizar cores do gráfico se existir
+                if (window.updateChartColors) {
+                    window.updateChartColors(this.value);
                 }
             });
         });

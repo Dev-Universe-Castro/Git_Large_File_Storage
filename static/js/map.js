@@ -272,9 +272,12 @@ function getColorForValue(value, min, max) {
     // Se não há valor, use uma cor para "sem dados"
     if (value <= 0 || !value) return '#F5F5F5';
 
+    // Obter cor base selecionada
+    const selectedColor = document.getElementById('color-selector')?.value || '#4CAF50';
+
     // Ajustar os valores mínimo e máximo para melhor distribuição
-    const adjustedMin = Math.max(min, 1); // Garantir que o mínimo seja pelo menos 1
-    const adjustedMax = Math.max(max, adjustedMin * 10); // Garantir uma faixa adequada
+    const adjustedMin = Math.max(min, 1);
+    const adjustedMax = Math.max(max, adjustedMin * 10);
 
     // Use escala logarítmica para melhor distribuição
     const logMin = Math.log(adjustedMin);
@@ -282,30 +285,85 @@ function getColorForValue(value, min, max) {
     const logValue = Math.log(Math.max(value, adjustedMin));
     const normalized = (logValue - logMin) / (logMax - logMin);
 
-    // Define escala de cores com melhor contraste
-    const colors = [
-        '#FFEB3B',  // Amarelo (valores baixos)
-        '#FFC107',  // Âmbar
-        '#FF9800',  // Laranja
-        '#FF5722',  // Laranja escuro
-        '#F44336',  // Vermelho
-        '#E91E63',  // Rosa
-        '#9C27B0',  // Roxo
-        '#673AB7',  // Roxo escuro
-        '#3F51B5',  // Azul índigo
-        '#2196F3',  // Azul
-        '#03A9F4',  // Azul claro
-        '#00BCD4',  // Ciano
-        '#009688',  // Verde-azulado
-        '#4CAF50',  // Verde
-        '#8BC34A',  // Verde claro
-        '#CDDC39'   // Lima
-    ];
+    // Gerar cor sequencial baseada na cor selecionada
+    return generateSequentialColor(normalized, selectedColor);
+}
 
-    // Normalizar valor e calcular índice
-    const clampedNormalized = Math.max(0, Math.min(1, normalized));
-    const index = Math.floor(clampedNormalized * (colors.length - 1));
-    return colors[index];
+function generateSequentialColor(normalized, baseColor) {
+    // Converter hex para RGB
+    const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    };
+
+    // Converter RGB para HSL
+    const rgbToHsl = (r, g, b) => {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+        return { h: h * 360, s: s * 100, l: l * 100 };
+    };
+
+    // Converter HSL para RGB
+    const hslToRgb = (h, s, l) => {
+        h /= 360; s /= 100; l /= 100;
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
+
+        let r, g, b;
+        if (s === 0) {
+            r = g = b = l;
+        } else {
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            r = hue2rgb(p, q, h + 1/3);
+            g = hue2rgb(p, q, h);
+            b = hue2rgb(p, q, h - 1/3);
+        }
+        return {
+            r: Math.round(r * 255),
+            g: Math.round(g * 255),
+            b: Math.round(b * 255)
+        };
+    };
+
+    const baseRgb = hexToRgb(baseColor);
+    if (!baseRgb) return baseColor;
+    
+    const baseHsl = rgbToHsl(baseRgb.r, baseRgb.g, baseRgb.b);
+    
+    // Criar escala sequencial: valores maiores = cores mais escuras
+    // Luminosidade varia de 85% (claro) para 15% (escuro)
+    const lightness = 85 - (normalized * 70);
+    
+    // Manter matiz, ajustar levemente a saturação
+    const saturation = Math.max(20, baseHsl.s - (normalized * 10));
+    
+    const newRgb = hslToRgb(baseHsl.h, saturation, lightness);
+    return `#${((1 << 24) + (newRgb.r << 16) + (newRgb.g << 8) + newRgb.b).toString(16).slice(1)}`;
 }
 
 let currentLegendControl = null;
@@ -330,7 +388,8 @@ function updateMapLegend(cropName) {
         let legendHTML = `<h6><i class="fas fa-seedling"></i> ${cropName}</h6>`;
         legendHTML += `<div style="font-size: 11px; margin-bottom: 5px;">Hectares Colhidos</div>`;
 
-        // Create color scale com distribuição logarítmica
+        // Create color scale com distribuição logarítmica usando cor selecionada
+        const selectedColor = document.getElementById('color-selector')?.value || '#4CAF50';
         const steps = 6;
         for (let i = 0; i < steps; i++) {
             let value;
